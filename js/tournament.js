@@ -11,7 +11,7 @@ export function loadEntry(file) {
 }
 
 function median(a) { const s = a.slice().sort((x, y) => x - y); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : 0; }
-function quant(a, q) { const s = a.slice().sort((x, y) => x - y); if (!s.length) return 0; const i = (s.length - 1) * q; const lo = Math.floor(i); return s[lo] + (s[i - lo]) * ((s[Math.ceil(i)] || s[lo]) - s[lo]); }
+function quant(a, q) { const s = a.slice().sort((x, y) => x - y); if (!s.length) return 0; const i = (s.length - 1) * q, lo = Math.floor(i); return s[lo] + (i - lo) * ((s[Math.ceil(i)] ?? s[lo]) - s[lo]); }
 
 // DUPLICATE: every entry plays its own copy of the same seeded shoe for N hands, R times. Fair and low-variance.
 export function duplicateTournament(entries, { N = 300, R = 200, baseSeed = 1234, mode = 'shoe' } = {}) {
