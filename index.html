@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" sizes="180x180" href="worldbyjoe-mark.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/app.css?v=4">
+<link rel="stylesheet" href="css/app.css?v=5">
 </head>
 <body>
 <header class="top">
@@ -68,6 +68,13 @@
             <div class="rl-est">Trains until you press Stop. Watch the strategy chart and stop when it stops improving.</div>
           </div>
         </div>
+        <div id="trainharder">
+          <label class="th-toggle"><input id="parallel-on" type="checkbox"> <b>Train harder</b> &middot; run several at once, keep the best</label>
+          <div id="parallel-n-wrap" class="th-body" hidden>
+            <input id="parallel-n" class="rl-num" type="number" min="2" step="1"> parallel runs
+            <div class="rl-est" id="cores-note"></div>
+          </div>
+        </div>
         <div style="margin-top:14px;display:flex;gap:8px">
           <button id="go" class="btn primary" style="flex:1">Train this model</button>
           <button id="reroll" class="btn" title="New random handle">⟳ name</button>
@@ -75,6 +82,7 @@
         <div id="train-panel" hidden style="margin-top:14px">
           <div class="bar"><i id="pbar"></i></div>
           <div id="status" class="mono" style="font-size:12px;color:var(--muted);margin:8px 0">idle</div>
+          <div id="runs" hidden></div>
           <div class="metrics">
             <div class="metric"><div class="k">win/hand</div><div class="v" id="m-ev">–</div></div>
             <div class="metric"><div class="k">avg bet</div><div class="v" id="m-bet">–</div></div>

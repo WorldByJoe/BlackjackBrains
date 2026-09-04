@@ -11,6 +11,9 @@ let created = new Date().toISOString();
 let savedToContinue = null;   // parsed file when continuing training
 let worker = null, running = false, lastReport = null, curve = [], startHands = 0;
 const runLen = { mode: 'hands', minutes: 2 };  // hands lives in cfg.school.hands
+const CORES = Math.max(1, navigator.hardwareConcurrency || 4);
+const parallel = { on: false, n: Math.min(CORES, 4) };  // "train harder": run n independent runs, keep the best
+let runs = [];
 
 const $ = s => document.querySelector(s);
 const ACT_NAMES = { H: 'Hit', S: 'Stand', D: 'Double', P: 'Split', R: 'Surrender' };
@@ -145,18 +148,104 @@ function renderRecipes() {
 function startTraining() {
   if (running) return;
   normalize(cfg);
-  running = true; curve = savedToContinue && savedToContinue.training.curve ? savedToContinue.training.curve.slice() : []; lastReport = null;
+  const spec = readRunLen();
+  running = true; lastReport = null; finishedFile = null;
   $('#train-panel').hidden = false; $('#go').disabled = true; $('#stop').disabled = false; $('#save').disabled = true;
-  const { hands, maxSeconds } = readRunLen();
-  $('#pbar').parentElement.classList.toggle('indet', hands === 0 && maxSeconds === 0);
+  $('#pbar').parentElement.classList.toggle('indet', spec.hands === 0 && spec.maxSeconds === 0);
   $('#pbar').style.width = '0%';
+  const n = parallel.on ? Math.max(2, Math.min(parallel.n, 8)) : 1;
+  if (n === 1) startSingle(spec); else startParallel(spec, n);
+}
+
+function startSingle(spec) {
+  $('#runs').hidden = true;
+  curve = savedToContinue && savedToContinue.training.curve ? savedToContinue.training.curve.slice() : [];
   worker = new Worker('js/worker.js', { type: 'module' });
   worker.onmessage = onWorker;
   worker.onerror = e => { $('#status').textContent = 'Worker error: ' + e.message; running = false; $('#go').disabled = false; };
-  worker.postMessage({ type: 'start', config: JSON.parse(JSON.stringify(cfg)), saved: savedToContinue, handle, created, hands, maxSeconds });
+  worker.postMessage({ type: 'start', config: JSON.parse(JSON.stringify(cfg)), saved: savedToContinue, handle, created, hands: spec.hands, maxSeconds: spec.maxSeconds });
   $('#status').textContent = 'starting…';
 }
-function stopTraining() { if (worker) worker.postMessage({ type: 'stop' }); }
+
+// Run n independent training runs at once (one per core), each with its own seed, and keep the best.
+// More total search means a stronger champion, the honest way to spend extra cores here.
+function startParallel(spec, n) {
+  runs = [];
+  const base = (Math.random() * 1e9) >>> 0;
+  const runsHost = $('#runs'); runsHost.hidden = false; runsHost.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const seed = ((base + i * 2654435761) >>> 0) || (i + 1);
+    const w = new Worker('js/worker.js', { type: 'module' });
+    const run = { i, worker: w, seed, hands: 0, rate: 0, frac: 0, report: null, file: null, done: false, err: null };
+    runs.push(run);
+    w.onmessage = e => onParallel(run, e);
+    w.onerror = e => { run.done = true; run.err = e.message; renderRuns(); checkAllDone(); };
+    w.postMessage({ type: 'start', config: JSON.parse(JSON.stringify(cfg)), saved: savedToContinue, handle, created, hands: spec.hands, maxSeconds: spec.maxSeconds, seed });
+  }
+  $('#status').textContent = `training ${n} in parallel across your cores, keeping the best…`;
+  renderRuns();
+}
+
+const runScore = r => (r.report ? r.report.point.goalScore : -Infinity);
+const bestRun = () => runs.filter(r => r.report).sort((a, b) => runScore(b) - runScore(a))[0] || null;
+
+function onParallel(run, e) {
+  const m = e.data;
+  if (m.type === 'progress') {
+    run.hands = m.hands; run.rate = m.rate; run.frac = m.frac || 0;
+    const lead = bestRun();
+    const frac = runs.reduce((a, r) => Math.max(a, r.frac), 0);
+    if (!(m.target === 0 && m.maxSeconds === 0)) $('#pbar').style.width = Math.min(100, frac * 100).toFixed(1) + '%';
+    renderRuns();
+  } else if (m.type === 'report') {
+    run.report = m;
+    const lead = bestRun();
+    if (lead === run) { lastReport = m; curve = m.curve; drawViews(); }  // show the current front-runner
+    renderRuns();
+  } else if (m.type === 'done') {
+    run.done = true; run.file = m.file; run.worker.terminate();
+    renderRuns(); checkAllDone();
+  } else if (m.type === 'error') {
+    run.done = true; run.err = m.message; run.worker.terminate();
+    renderRuns(); checkAllDone();
+  }
+}
+
+function checkAllDone() {
+  if (!runs.length || !runs.every(r => r.done)) return;
+  running = false;
+  const winners = runs.filter(r => r.file).sort((a, b) => runScore(b) - runScore(a));
+  const best = winners[0];
+  $('#go').disabled = false; $('#stop').disabled = true; $('#pbar').parentElement.classList.remove('indet');
+  if (!best) { $('#status').textContent = 'All runs failed: ' + (runs.find(r => r.err) || {}).err; return; }
+  finishedFile = best.file; lastReport = best.report; curve = best.report ? best.report.curve : curve;
+  $('#save').disabled = false; $('#pbar').style.width = '100%';
+  drawViews();
+  $('#status').textContent = `done · kept the best of ${runs.length}: run ${best.i + 1}, ${chips(best.file.training.hands)} hands, score ${runScore(best).toFixed(2)}. Save it below.`;
+  renderRuns();
+}
+
+function renderRuns() {
+  const host = $('#runs'); if (!host || host.hidden) return;
+  const lead = bestRun();
+  host.innerHTML = '';
+  host.append(el('div', { class: 'runs-head', text: `${runs.length} parallel runs — keeping the best` }));
+  runs.forEach(r => {
+    const isBest = r === lead && r.report;
+    const status = r.err ? 'failed' : r.done ? 'done' : `${fmt(r.rate)}/s`;
+    host.append(el('div', { class: 'run' + (isBest ? ' best' : '') + (r.done ? ' fin' : '') }, [
+      el('span', { class: 'run-i', text: 'Run ' + (r.i + 1) }),
+      el('span', { class: 'run-hands', text: chips(r.hands) + ' hands' }),
+      el('span', { class: 'run-score', text: r.report ? 'score ' + r.report.point.goalScore.toFixed(2) : '…' }),
+      el('span', { class: 'run-tag', text: isBest ? 'leading' : status }),
+    ]));
+  });
+}
+
+function stopTraining() {
+  if (worker) worker.postMessage({ type: 'stop' });
+  runs.forEach(r => { if (!r.done && r.worker) r.worker.postMessage({ type: 'stop' }); });
+}
 
 let finishedFile = null;
 function onWorker(e) {
@@ -256,5 +345,11 @@ export function init() {
   $('#rl-hands').onchange = e => { cfg.school.hands = Math.max(1000, Math.round(+e.target.value || 0)); e.target.value = cfg.school.hands; renderSide(); syncRunLen(); };
   document.querySelectorAll('.rl-presets button').forEach(b => { b.onclick = () => { cfg.school.hands = +b.dataset.h; renderSide(); syncRunLen(); }; });
   $('#rl-min').onchange = e => { runLen.minutes = Math.max(0.25, +e.target.value || 1); e.target.value = runLen.minutes; };
+  // train harder (parallel runs, keep the best)
+  const pn = $('#parallel-n');
+  pn.value = parallel.n; pn.max = CORES;
+  $('#cores-note').textContent = `Uses your machine's cores (about ${CORES} available). Each run trains the same design with different luck; you keep the strongest. Great for squeezing out a competition edge.`;
+  $('#parallel-on').onchange = e => { parallel.on = e.target.checked; $('#parallel-n-wrap').hidden = !e.target.checked; };
+  pn.onchange = e => { parallel.n = Math.max(2, Math.min(CORES, Math.round(+e.target.value || 2))); e.target.value = parallel.n; };
   setRunMode('hands'); syncRunLen();
 }

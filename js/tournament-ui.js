@@ -1,12 +1,14 @@
 // Tournament page: load models, run the leaderboard (duplicate or live), and animate one live table.
 import { verifyModel, weightClass, experienceClass } from './model.js';
 import { loadEntry, duplicateTournament, liveTournament, playLiveTable, isInteresting } from './tournament.js';
+import { OPTIONS, LAYERS, BRAINS, isVisible, getPath } from './menu.js';
 import { el, fmt, pct, chips, readFile, css, attachTip } from './ui.js';
-import { TABLE } from './engine.js';
+import { TABLE, RULES } from './engine.js';
 
 const $ = s => document.querySelector(s);
 const COLORS = ['#1E6A48', '#B23A31', '#3B6EA8', '#A88434', '#7A4EA3', '#5A6B7C'];
 let entries = [];
+let specOpen = -1;   // index of the entry whose training options are shown
 const CARD = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
 const rankStr = c => (c.r || (c.v === 1 ? 'A' : c.v)) + (c.s || '');
 
@@ -26,12 +28,63 @@ function renderEntries() {
       el('td', {}, [el('span', { class: 'pill', text: weightClass(e.params) })]),
       el('td', { class: 'num', text: chips(e.hands) }),
       el('td', {}, [el('span', { class: 'pill', text: experienceClass(e.hands) })]),
-      el('td', {}, [el('button', { class: 'btn small danger', onclick: () => { entries.splice(i, 1); renderEntries(); } }, ['remove'])]),
+      el('td', { style: 'white-space:nowrap' }, [
+        el('button', { class: 'btn small' + (specOpen === i ? ' primary' : ''), onclick: () => toggleSpec(i) }, ['options']),
+        el('button', { class: 'btn small danger', style: 'margin-left:4px', onclick: () => { entries.splice(i, 1); if (specOpen === i) specOpen = -1; else if (specOpen > i) specOpen--; renderEntries(); renderSpec(); } }, ['remove']),
+      ]),
     ]));
   });
   t.append(b); host.append(t);
   const cls = new Set(entries.map(e => weightClass(e.params) + '/' + experienceClass(e.hands)));
   if (cls.size > 1) host.append(el('p', { class: 'blurb', style: 'margin-top:8px', text: 'Heads up: these models are not all the same weight and experience class. Fair fights match class; mixed fields are fun but lopsided.' }));
+  renderSpec();
+}
+
+function toggleSpec(i) { specOpen = specOpen === i ? -1 : i; renderEntries(); }
+
+// The full sheet of choices a player made when training this model, read back from the saved file.
+function renderSpec() {
+  const host = $('#modelcard'); if (!host) return;
+  if (specOpen < 0 || !entries[specOpen]) { host.hidden = true; host.innerHTML = ''; return; }
+  host.hidden = false; host.innerHTML = '';
+  host.append(specSheet(entries[specOpen].file));
+}
+
+function specSheet(file) {
+  const cfg = file.config;
+  const wrap = el('div', { class: 'spec' });
+  wrap.append(el('div', { class: 'spec-head' }, [
+    el('div', {}, [el('div', { class: 'spec-title', text: file.handle }),
+      el('div', { class: 'spec-sub', text: `${BRAINS[cfg.brain].label} · ${fmt(file.params)} parameters · ${weightClass(file.params)} · ${chips(file.training.hands)} hands · ${experienceClass(file.training.hands)}` })]),
+    el('button', { class: 'btn small', onclick: () => { specOpen = -1; renderEntries(); } }, ['close']),
+  ]));
+  wrap.append(el('div', { class: 'spec-note', text: 'Every choice this model was trained with. Toggles are listed only where the player turned them on.' }));
+  const grid = el('div', { class: 'spec-grid' });
+  for (const layer of LAYERS) {
+    const opts = OPTIONS.filter(o => o.layer === layer.id && isVisible(o, cfg));
+    const dl = el('dl', { class: 'spec-list' });
+    let n = 0;
+    for (const o of opts) {
+      const v = getPath(cfg, o.path);
+      if (o.type === 'toggle' && !v) continue;                 // show only enabled toggles
+      if (o.path === 'brain') continue;                        // brain is already in the header
+      let label;
+      if (o.type === 'toggle') label = 'on';
+      else if (o.choices) { const c = o.choices.find(c => c.v === v); label = c ? c.label : String(v); }
+      else label = String(v);
+      dl.append(el('dt', { text: o.label })); dl.append(el('dd', { text: label }));
+      n++;
+    }
+    if (!n) dl.append(el('dt', { class: 'muted', text: '(standard)' }), el('dd', {}, ['']));
+    grid.append(el('div', { class: 'spec-sec' }, [el('div', { class: 'spec-layer', text: layer.title }), dl]));
+  }
+  wrap.append(grid);
+  const hist = file.training.history;
+  if (hist && hist.length > 1) {
+    wrap.append(el('div', { class: 'spec-hist', text: `Trained in ${hist.length} sessions: ` + hist.map(x => (x.hands || 0).toLocaleString() + ' hands' + (x.date ? ' (' + x.date.slice(0, 10) + ')' : '')).join(', ') }));
+  }
+  wrap.append(el('div', { class: 'spec-hist', text: `House rules stamped in file: ${RULES.decks}-deck shoe, dealer ${RULES.dealerHitsSoft17 ? 'hits' : 'stands'} soft 17, blackjack pays ${RULES.blackjackPays === 1.5 ? '3:2' : RULES.blackjackPays}.` }));
+  return wrap;
 }
 
 async function addFiles(files) {

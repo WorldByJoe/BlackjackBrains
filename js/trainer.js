@@ -281,7 +281,7 @@ export function createTrainer(cfg, saved = null) {
   T.report = function (evalHands) {
     const ev = evaluate(model, { hands: evalHands, seed: 4242, N });
     const chart = strategyChart(model);
-    const point = { hands: T.hands, ev: ev.evPerHand, bet: ev.meanBet, ruin: ev.ruinRate, final: ev.meanFinal, agree: chart.agreement, trainEV: T.trainingEV() };
+    const point = { hands: T.hands, ev: ev.evPerHand, bet: ev.meanBet, ruin: ev.ruinRate, final: ev.meanFinal, agree: chart.agreement, trainEV: T.trainingEV(), goalScore: ev.goalScore };
     T.curve.push(point);
     return { point, chart, byCount: ev.byCount, trace: T.lastTrace.length ? T.lastTrace : T.trace, generation: T.generation };
   };

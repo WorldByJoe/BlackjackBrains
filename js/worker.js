@@ -37,6 +37,7 @@ function loop() {
 onmessage = (e) => {
   const m = e.data;
   if (m.type === 'start') {
+    if (m.seed) m.config.school = { ...m.config.school, seed: m.seed };  // distinct seed per parallel run
     try { T = createTrainer(m.config, m.saved || null); } catch (err) { postMessage({ type: 'error', message: err.message + '\n' + err.stack }); return; }
     meta = { handle: m.handle, created: m.created, history: m.saved ? m.saved.training.history || [] : [] };
     targetHands = m.hands || 0; maxSeconds = m.maxSeconds || 0; handsAtStart = T.hands;
