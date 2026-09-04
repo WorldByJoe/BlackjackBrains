@@ -34,6 +34,7 @@ button,select,input{font-family:inherit;font-size:14px;color:var(--ink)}
 
 /* top bar */
 .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:12px 22px;background:var(--felt);color:#fff;box-shadow:var(--shadow)}
+.top .mark{height:34px;width:34px;border-radius:8px;display:block;flex:0 0 auto;background:#fff;padding:3px;box-shadow:var(--shadow)}
 .top h1{font-size:26px;color:#fff;line-height:1}
 .top .sub{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
 .top nav{margin-left:auto;display:flex;gap:6px}

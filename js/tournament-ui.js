@@ -146,9 +146,9 @@ function drawFelt(rec) {
   host.append(seatsWrap);
 }
 function cardEl(c) {
-  if (!c) return el('div', { class: 'card back' });
+  if (!c) return el('div', { class: 'pcard back' });
   const red = c.s === '♥' || c.s === '♦';
-  return el('div', { class: 'card' + (red ? ' red' : '') }, [rankStr(c)]);
+  return el('div', { class: 'pcard' + (red ? ' red' : '') }, [rankStr(c)]);
 }
 function outcomeLabel(h) {
   const ev = evalTotal(h.cards);

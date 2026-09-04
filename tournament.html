@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Blackjack Brains — Tournament</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="180x180" href="worldbyjoe-mark.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/app.css?v=2">
 <style>
 /* felt table */
 #felt{background:radial-gradient(ellipse at 50% 0%, var(--felt-bright), var(--felt) 70%);border-radius:14px;padding:18px;color:#fff;box-shadow:var(--shadow)}
@@ -17,9 +20,9 @@
 .cards{display:flex;gap:4px;flex-wrap:wrap;min-height:44px;align-items:center;justify-content:center}
 .seat:not(.dealer) .cards{justify-content:flex-start}
 .hand{margin-bottom:4px}
-.card{width:30px;height:42px;background:#fff;color:#111;border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.card.red{color:#B23A31}
-.card.back{background:repeating-linear-gradient(45deg,#7a1f1f,#7a1f1f 4px,#5a1616 4px,#5a1616 8px)}
+.pcard{width:30px;height:42px;background:#fff;color:#111;border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.pcard.red{color:#B23A31}
+.pcard.back{background:repeating-linear-gradient(45deg,#7a1f1f,#7a1f1f 4px,#5a1616 4px,#5a1616 8px)}
 .tot{font-family:"IBM Plex Mono",monospace;font-size:12px;margin-top:3px;opacity:.95}
 .money{display:flex;align-items:baseline;gap:8px;margin-top:6px;font-family:"IBM Plex Mono",monospace}
 .money .bank{font-size:16px;font-weight:600} .money .delta{font-size:13px} .money .bet-tag{font-size:11px;opacity:.7;margin-left:auto}
@@ -31,6 +34,7 @@
 </head>
 <body>
 <header class="top">
+  <img class="mark" src="worldbyjoe-mark.png" alt="World by Joe">
   <h1>Blackjack Brains</h1>
   <span class="sub">Tournament</span>
   <nav>
