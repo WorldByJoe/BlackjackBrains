@@ -10,16 +10,22 @@ let handle = randomHandle();
 let created = new Date().toISOString();
 let savedToContinue = null;   // parsed file when continuing training
 let worker = null, running = false, lastReport = null, curve = [], startHands = 0;
+const runLen = { mode: 'hands', minutes: 2 };  // hands lives in cfg.school.hands
 
 const $ = s => document.querySelector(s);
 const ACT_NAMES = { H: 'Hit', S: 'Stand', D: 'Double', P: 'Split', R: 'Surrender' };
+
+// Which layers are open. Remembered across the frequent full re-renders, so choosing an
+// option never collapses a section the user left open.
+const openLayers = new Set(['brain']);
 
 // ---------------------------------------------------------------- menu rendering
 function renderMenu() {
   const host = $('#menu'); host.innerHTML = '';
   for (const layer of LAYERS) {
     const opts = OPTIONS.filter(o => o.layer === layer.id && isVisible(o, cfg));
-    const det = el('details', { class: 'layer', open: layer.id === 'brain' ? '' : null });
+    const det = el('details', { class: 'layer', open: openLayers.has(layer.id) ? '' : null });
+    det.addEventListener('toggle', () => { if (det.open) openLayers.add(layer.id); else openLayers.delete(layer.id); });
     const sum = el('summary', {}, [
       el('span', { class: 'n', text: LAYERS.indexOf(layer) + 1 }),
       el('h3', { text: layer.title }),
@@ -104,7 +110,26 @@ function renderSide() {
   if (warns.length) { const ul = el('ul', { class: 'warns' }); warns.forEach(w => ul.append(el('li', { class: /will not learn|identical/.test(w) ? 'hard' : '', text: w }))); s.append(ul); }
 }
 function sideOnly() { renderSide(); }
-function refresh() { renderMenu(); renderSide(); }
+function refresh() { renderMenu(); renderSide(); syncRunLen(); }
+
+// ---------------------------------------------------------------- training length
+function readRunLen() {
+  if (runLen.mode === 'time') return { hands: 0, maxSeconds: Math.max(5, Math.round(runLen.minutes * 60)) };
+  if (runLen.mode === 'open') return { hands: 0, maxSeconds: 0 };
+  return { hands: cfg.school.hands, maxSeconds: 0 };
+}
+function syncRunLen() {
+  const i = $('#rl-hands'); if (!i) return;
+  if (document.activeElement !== i) i.value = cfg.school.hands;
+  const est = $('#rl-est');
+  if (est) est.textContent = `${chips(cfg.school.hands)} hands. Also sets the learning schedule, so the model paces its exploration to this length.`;
+}
+function setRunMode(mode) {
+  runLen.mode = mode;
+  document.querySelectorAll('.rl-mode').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  document.querySelectorAll('.rl-body').forEach(b => { b.hidden = b.dataset.body !== mode; });
+  $('#go').textContent = mode === 'open' ? 'Train until I stop' : 'Train this model';
+}
 
 // ---------------------------------------------------------------- recipes
 function renderRecipes() {
@@ -122,10 +147,13 @@ function startTraining() {
   normalize(cfg);
   running = true; curve = savedToContinue && savedToContinue.training.curve ? savedToContinue.training.curve.slice() : []; lastReport = null;
   $('#train-panel').hidden = false; $('#go').disabled = true; $('#stop').disabled = false; $('#save').disabled = true;
+  const { hands, maxSeconds } = readRunLen();
+  $('#pbar').parentElement.classList.toggle('indet', hands === 0 && maxSeconds === 0);
+  $('#pbar').style.width = '0%';
   worker = new Worker('js/worker.js', { type: 'module' });
   worker.onmessage = onWorker;
   worker.onerror = e => { $('#status').textContent = 'Worker error: ' + e.message; running = false; $('#go').disabled = false; };
-  worker.postMessage({ type: 'start', config: JSON.parse(JSON.stringify(cfg)), saved: savedToContinue, handle, created, hands: cfg.school.hands });
+  worker.postMessage({ type: 'start', config: JSON.parse(JSON.stringify(cfg)), saved: savedToContinue, handle, created, hands, maxSeconds });
   $('#status').textContent = 'starting…';
 }
 function stopTraining() { if (worker) worker.postMessage({ type: 'stop' }); }
@@ -135,12 +163,12 @@ function onWorker(e) {
   const m = e.data;
   if (m.type === 'started') { startHands = m.hands || 0; $('#status').textContent = `training ${BRAINS[cfg.brain].label}, ${fmt(m.params)} parameters`; }
   else if (m.type === 'progress') {
-    const frac = m.done / m.target;
-    $('#pbar').style.width = (frac * 100).toFixed(1) + '%';
-    $('#status').textContent = `${chips(m.hands)} hands · ${fmt(m.rate)} hands/s · ${cfg.brain === 'evo' ? 'gen ' + m.generation + ' · ' : ''}${(m.elapsed).toFixed(0)}s`;
+    if (!(m.target === 0 && m.maxSeconds === 0)) $('#pbar').style.width = Math.min(100, (m.frac || 0) * 100).toFixed(1) + '%';
+    const time = m.maxSeconds > 0 ? `${m.elapsed.toFixed(0)}s / ${m.maxSeconds}s` : `${m.elapsed.toFixed(0)}s`;
+    $('#status').textContent = `${chips(m.hands)} hands · ${fmt(m.rate)} hands/s · ${cfg.brain === 'evo' ? 'gen ' + m.generation + ' · ' : ''}${time}`;
     setMetric('train-ev', (m.trainEV >= 0 ? '+' : '') + m.trainEV.toFixed(3));
   } else if (m.type === 'report') { lastReport = m; curve = m.curve; drawViews(); }
-  else if (m.type === 'done') { finishedFile = m.file; running = false; $('#go').disabled = false; $('#stop').disabled = true; $('#save').disabled = false; $('#status').textContent = 'done · ' + chips(m.file.training.hands) + ' hands total. Save your model below.'; worker.terminate(); worker = null; }
+  else if (m.type === 'done') { finishedFile = m.file; running = false; $('#go').disabled = false; $('#stop').disabled = true; $('#save').disabled = false; $('#pbar').parentElement.classList.remove('indet'); if (readRunLen().hands === 0 && readRunLen().maxSeconds === 0) $('#pbar').style.width = '100%'; $('#status').textContent = 'done · ' + chips(m.file.training.hands) + ' hands total. Save your model below.'; worker.terminate(); worker = null; }
   else if (m.type === 'error') { $('#status').textContent = 'Error: ' + m.message; running = false; $('#go').disabled = false; }
 }
 
@@ -223,4 +251,10 @@ export function init() {
   const fi = $('#loadfile'); fi.onchange = e => { if (e.target.files[0]) loadModel(e.target.files[0]); };
   $('#loadbtn').onclick = () => fi.click();
   $('#fresh').onclick = () => { savedToContinue = null; finishedFile = null; cfg = normalize(defaultConfig()); handle = randomHandle(); created = new Date().toISOString(); $('#train-panel').hidden = true; refresh(); };
+  // training length
+  document.querySelectorAll('.rl-mode').forEach(b => { b.onclick = () => setRunMode(b.dataset.mode); });
+  $('#rl-hands').onchange = e => { cfg.school.hands = Math.max(1000, Math.round(+e.target.value || 0)); e.target.value = cfg.school.hands; renderSide(); syncRunLen(); };
+  document.querySelectorAll('.rl-presets button').forEach(b => { b.onclick = () => { cfg.school.hands = +b.dataset.h; renderSide(); syncRunLen(); }; });
+  $('#rl-min').onchange = e => { runLen.minutes = Math.max(0.25, +e.target.value || 1); e.target.value = runLen.minutes; };
+  setRunMode('hands'); syncRunLen();
 }

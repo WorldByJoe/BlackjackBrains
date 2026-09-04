@@ -24,6 +24,7 @@
   --tab:#D3B36A; --val:#4EB688; --pol:#7FA8DA; --evo:#B18AE0; --mem:#9FB0C0;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{color-scheme:light dark}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
 a{color:var(--felt)}
@@ -117,9 +118,26 @@ button,select,input{font-family:inherit;font-size:14px;color:var(--ink)}
 .recipe .rl{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--felt);margin:3px 0}
 .recipe .rb{font-size:12px;color:var(--muted);line-height:1.4}
 
+/* training length control */
+#runlen{margin-top:14px;border:1px solid var(--line);border-radius:9px;padding:12px;background:var(--panel)}
+.rl-head{font-weight:700;font-size:13px;margin-bottom:8px}
+.rl-modes{display:flex;gap:4px;margin-bottom:10px}
+.rl-mode{flex:1;padding:6px 4px;border:1px solid var(--line);background:var(--surface);border-radius:6px;font-size:12.5px;cursor:pointer;color:var(--ink);font-weight:600}
+.rl-mode:hover{border-color:var(--felt)}
+.rl-mode.on{background:var(--felt);color:#fff;border-color:var(--felt)}
+.rl-body{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.rl-num{width:120px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.rl-unit{font-size:13px;color:var(--muted)}
+.rl-presets{display:flex;gap:4px;width:100%;margin-top:2px}
+.rl-presets button{flex:1;padding:4px;border:1px solid var(--line);background:var(--surface);border-radius:5px;font-size:11.5px;font-family:"IBM Plex Mono",monospace;cursor:pointer;color:var(--ink)}
+.rl-presets button:hover{border-color:var(--felt)}
+.rl-est{font-size:11.5px;color:var(--muted);width:100%;line-height:1.4;margin-top:4px}
+
 /* progress + charts */
 .bar{height:10px;background:var(--line);border-radius:999px;overflow:hidden}
 .bar>i{display:block;height:100%;background:var(--felt);width:0;transition:width .2s}
+.bar.indet>i{width:35%!important;transition:none;animation:indet 1.1s ease-in-out infinite alternate}
+@keyframes indet{from{margin-left:0}to{margin-left:65%}}
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin:12px 0}
 .metric{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 .metric .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}

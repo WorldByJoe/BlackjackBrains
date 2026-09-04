@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" sizes="180x180" href="worldbyjoe-mark.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/app.css?v=2">
+<link rel="stylesheet" href="css/app.css?v=4">
 </head>
 <body>
 <header class="top">
@@ -41,6 +41,33 @@
     <div class="side">
       <div class="card">
         <div id="side"></div>
+        <div id="runlen">
+          <div class="rl-head">Training length</div>
+          <div class="rl-modes">
+            <button type="button" class="rl-mode" data-mode="hands">Set hands</button>
+            <button type="button" class="rl-mode" data-mode="time">Set time</button>
+            <button type="button" class="rl-mode" data-mode="open">Until I stop</button>
+          </div>
+          <div class="rl-body" data-body="hands">
+            <input id="rl-hands" class="rl-num" type="number" min="1000" step="10000" inputmode="numeric">
+            <span class="rl-unit">hands</span>
+            <div class="rl-presets">
+              <button type="button" data-h="10000">10k</button>
+              <button type="button" data-h="100000">100k</button>
+              <button type="button" data-h="1000000">1M</button>
+              <button type="button" data-h="10000000">10M</button>
+            </div>
+            <div class="rl-est" id="rl-est"></div>
+          </div>
+          <div class="rl-body" data-body="time" hidden>
+            <input id="rl-min" class="rl-num" type="number" min="0.25" step="0.5" value="2" inputmode="decimal">
+            <span class="rl-unit">minutes</span>
+            <div class="rl-est">Stops after this much wall-clock time, however many hands that turns out to be.</div>
+          </div>
+          <div class="rl-body" data-body="open" hidden>
+            <div class="rl-est">Trains until you press Stop. Watch the strategy chart and stop when it stops improving.</div>
+          </div>
+        </div>
         <div style="margin-top:14px;display:flex;gap:8px">
           <button id="go" class="btn primary" style="flex:1">Train this model</button>
           <button id="reroll" class="btn" title="New random handle">⟳ name</button>
