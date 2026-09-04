@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blackjack Brains — Tournament</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<style>
+/* felt table */
+#felt{background:radial-gradient(ellipse at 50% 0%, var(--felt-bright), var(--felt) 70%);border-radius:14px;padding:18px;color:#fff;box-shadow:var(--shadow)}
+#felt .seat-name{font-size:12px;font-weight:600;margin-bottom:5px;opacity:.95}
+.seat.dealer{text-align:center;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed rgba(255,255,255,.3)}
+.seats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.seat{background:rgba(0,0,0,.14);border-radius:10px;padding:10px}
+.seat.bot{opacity:.72}
+.cards{display:flex;gap:4px;flex-wrap:wrap;min-height:44px;align-items:center;justify-content:center}
+.seat:not(.dealer) .cards{justify-content:flex-start}
+.hand{margin-bottom:4px}
+.card{width:30px;height:42px;background:#fff;color:#111;border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.card.red{color:#B23A31}
+.card.back{background:repeating-linear-gradient(45deg,#7a1f1f,#7a1f1f 4px,#5a1616 4px,#5a1616 8px)}
+.tot{font-family:"IBM Plex Mono",monospace;font-size:12px;margin-top:3px;opacity:.95}
+.money{display:flex;align-items:baseline;gap:8px;margin-top:6px;font-family:"IBM Plex Mono",monospace}
+.money .bank{font-size:16px;font-weight:600} .money .delta{font-size:13px} .money .bet-tag{font-size:11px;opacity:.7;margin-left:auto}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.controls label{font-size:13px;display:flex;align-items:center;gap:5px}
+.setting{display:flex;gap:6px;align-items:center;font-size:13px}
+.setting select{padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Blackjack Brains</h1>
+  <span class="sub">Tournament</span>
+  <nav>
+    <a href="index.html">Train</a>
+    <a href="tournament.html" class="here">Tournament</a>
+    <a href="guide.html">Guide</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>Seat the players</h2>
+    <p class="blurb">Load the models you and others trained, then play them against each other. Every model was trained under the same house rules, so the fight is fair; the file records each one's weight class and training, and a warning shows if you mix classes.</p>
+    <div id="drop" class="drop">
+      Drop <b>.bjbrain.json</b> model files here, or
+      <button id="pick" class="btn small">choose files</button>
+      <input id="files" type="file" accept=".json,application/json" multiple hidden>
+    </div>
+    <div id="entries" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Table settings</h2>
+    <div class="controls">
+      <span class="setting">Cards <select id="cards"><option value="shoe">5-deck shoe</option><option value="single">single deck</option></select></span>
+      <span class="setting">Hands <select id="hands"><option>100</option><option selected>300</option><option>1000</option></select></span>
+      <span class="setting">House bots <select id="bots"><option>0</option><option>1</option><option>2</option><option>3</option></select></span>
+    </div>
+  </div>
+
+  <div class="cols" style="grid-template-columns:1fr 1fr">
+    <div class="card">
+      <h2>Leaderboard</h2>
+      <p class="blurb">Play many sessions and rank by results. <b>Duplicate</b> deals every model the identical cards in isolation, the fairest measure. <b>Shared table</b> seats them together over one shoe, like a real casino, where one model's hit changes the next model's card.</p>
+      <div class="controls">
+        <span class="setting">Format <select id="kind"><option value="duplicate">Duplicate (identical cards)</option><option value="live">Shared table</option></select></span>
+        <span class="setting">Sessions <select id="reps"><option>50</option><option selected>200</option><option>500</option></select></span>
+        <button id="run" class="btn primary">Run</button>
+      </div>
+      <div id="lb-status" class="blurb mono" style="font-size:12px"></div>
+      <div id="leaderboard" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Watch a live table</h2>
+      <p class="blurb">One shared shoe, dealt hand by hand. Turn on "skip the obvious hands" to fast-forward the routine ones and slow down when a model makes a big bet, splits, doubles, or a blackjack lands.</p>
+      <div class="controls">
+        <button id="deal" class="btn">Deal a session</button>
+        <button id="play" class="btn primary">▶ Play</button>
+        <button id="step" class="btn small">Step</button>
+        <label>Speed <select id="speed"><option value="600">slow</option><option value="280" selected>medium</option><option value="90">fast</option></select></label>
+        <label><input id="skip" type="checkbox" checked> skip the obvious hands</label>
+      </div>
+      <div id="live-status" class="blurb mono" style="font-size:12px"></div>
+      <div id="felt" hidden><div id="felt-body"></div></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { init } from './js/tournament-ui.js';
+init();
+</script>
+</body>
+</html>

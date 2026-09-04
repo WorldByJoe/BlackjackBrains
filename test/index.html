@@ -1,0 +1,95 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Blackjack Brains tests</title>
+<style>body{font-family:ui-monospace,Menlo,monospace;font-size:13px;padding:16px;white-space:pre-wrap}</style></head>
+<body><div id="out">running…</div>
+<script type="module">
+import { RULES, TABLE, Shoe, Table, evalHand, mulberry32, runSession } from '../js/engine.js';
+import { bookAgent, bookAction } from '../js/book.js';
+import { defaultConfig, buildModel, serializeModel, verifyModel } from '../js/model.js';
+import { createTrainer, evaluate, strategyChart } from '../js/trainer.js';
+import { RECIPES, applyRecipe, normalize } from '../js/menu.js';
+import { randomHandle } from '../js/names.js';
+
+const out = document.getElementById('out'); const lines = [];
+const log = (...a) => { lines.push(a.join(' ')); out.textContent = lines.join('\n'); console.log(...a); };
+const ok = (c, m) => log((c ? 'PASS ' : 'FAIL ') + m);
+const results = {};
+const ch = new MessageChannel(); const yieldNow = () => new Promise(r => { ch.port1.onmessage = () => r(); ch.port2.postMessage(0); });
+await yieldNow();
+
+// ---- hand values
+ok(evalHand([{ v: 1 }, { v: 10 }]).total === 21, 'A+10 = 21');
+ok(evalHand([{ v: 1 }, { v: 1 }]).total === 12 && evalHand([{ v: 1 }, { v: 1 }]).soft, 'A+A = soft 12');
+ok(evalHand([{ v: 1 }, { v: 6 }, { v: 10 }]).total === 17 && !evalHand([{ v: 1 }, { v: 6 }, { v: 10 }]).soft, 'A+6+10 = hard 17');
+ok(bookAction({ total: 16, soft: false, pair: false, cards: [{ v: 10 }, { v: 6 }] }, 10, { H: 1, S: 1, D: 1, P: 0, R: 1 }) === 'R', 'book: 16 v 10 surrenders');
+ok(bookAction({ total: 16, soft: false, pair: true, cards: [{ v: 8 }, { v: 8 }] }, 10, { H: 1, S: 1, D: 1, P: 1, R: 1 }) === 'P', 'book: 8,8 v 10 splits');
+ok(bookAction({ total: 11, soft: false, pair: false, cards: [{ v: 5 }, { v: 6 }] }, 1, { H: 1, S: 1, D: 1, P: 0, R: 1 }) === 'H', 'book: 11 v A hits (S17)');
+
+// ---- engine accounting and book EV
+{
+  const rng = mulberry32(7), shoe = new Shoe({ mode: 'shoe', decks: 5, penetration: 0.75, rng });
+  const t = new Table({ shoe, players: [{ agent: bookAgent, bankroll: 1e9 }], rng });
+  let net = 0, hands = 0, bad = 0, splits = 0, doubles = 0, surr = 0, bj = 0;
+  const t0 = performance.now();
+  const HANDS = 200000;
+  for (let i = 0; i < HANDS; i++) {
+    const before = t.players[0].bankroll;
+    const rec = t.playRound();
+    const p = rec.players[0]; net += p.net; hands++;
+    if (Math.abs((t.players[0].bankroll - before) - p.net) > 1e-9) bad++;
+    for (const h of p.hands) { if (h.doubled) doubles++; if (h.outcome === 'surrender') surr++; if (h.outcome === 'blackjack') bj++; }
+    if (p.hands.length > 1) splits++;
+    if (shoe.mode === 'shoe' && !shoe.needsShuffle()) { let s = 0; for (const x of shoe.tray) s += x; if (s !== shoe.pos) { bad++; } }
+  }
+  const dt = (performance.now() - t0) / 1000;
+  results.bookRate = Math.round(HANDS / dt);
+  ok(bad === 0, `bankroll accounting and tray consistent over ${HANDS} hands (bad=${bad})`);
+  const ev = net / hands;
+  ok(ev > -0.02 && ev < 0.01, `book EV per hand = ${ev.toFixed(4)} (expect about -0.005)`);
+  log(`  splits ${(splits / hands * 100).toFixed(1)}%  doubles ${(doubles / hands * 100).toFixed(1)}%  surrender ${(surr / hands * 100).toFixed(1)}%  blackjacks ${(bj / hands * 100).toFixed(1)}%  speed ${results.bookRate} hands/s`);
+}
+
+// ---- trainers
+async function trainRecipe(name, hands, extra = {}) {
+  const r = RECIPES.find(x => x.name === name);
+  const cfg = applyRecipe(defaultConfig(), r); Object.assign(cfg.school, { hands, seed: 99 }, extra.school || {});
+  if (extra.cfg) for (const k in extra.cfg) Object.assign(cfg[k], extra.cfg[k]);
+  normalize(cfg);
+  const T = createTrainer(cfg);
+  const t0 = performance.now();
+  const chunk = cfg.brain === 'evo' ? cfg.evo.evalHands : 5000;
+  while (T.hands < hands) { T.step(chunk); await yieldNow(); }
+  const dt = (performance.now() - t0) / 1000;
+  const rep = T.report(3000);
+  const file = serializeModel({ model: T.model, handle: randomHandle(), created: new Date().toISOString(), training: { hands: T.hands, curve: T.curve }, chart: rep.chart });
+  const issues = verifyModel(file);
+  const rebuilt = buildModel(cfg, JSON.parse(JSON.stringify(file)));
+  const ev2 = evaluate(rebuilt, { hands: 3000, seed: 4242, N: cfg.goal.N });
+  log(`${name} [${cfg.brain}]: ${hands} hands in ${dt.toFixed(1)}s (${Math.round(hands / dt)} hands/s)  params ${T.model.paramCount()}  eval EV ${rep.point.ev.toFixed(4)}  bet ${rep.point.bet.toFixed(2)}  ruin ${rep.point.ruin.toFixed(2)}  chart agreement ${(rep.chart.agreement * 100).toFixed(0)}%  file ${(JSON.stringify(file).length / 1024).toFixed(0)} kB`);
+  ok(issues.length === 0, `  file verifies (${issues.join('; ') || 'ok'})`);
+  ok(Math.abs(ev2.evPerHand - rep.point.ev) < 1e-9, `  reloaded model plays identically (${ev2.evPerHand.toFixed(4)} vs ${rep.point.ev.toFixed(4)})`);
+  return { T, rep, rate: hands / dt };
+}
+const acc = await trainRecipe('The Accountant', 300000);
+ok(acc.rep.chart.agreement > 0.7, `  Accountant learned most of the book (${(acc.rep.chart.agreement * 100).toFixed(0)}%)`);
+ok(acc.rep.point.ev > -0.03, `  Accountant EV ${acc.rep.point.ev.toFixed(4)} > -0.03`);
+const sharp = await trainRecipe('The Card Sharp', 60000);
+const roller = await trainRecipe('The High Roller', 30000);
+const darwin = await trainRecipe('The Darwinist', 60000, { cfg: { evo: { pop: 10, evalHands: 500 } } });
+const elephant = await trainRecipe('The Elephant', 30000);
+const uncle = await trainRecipe('The Superstitious Uncle', 30000);
+// shared brain + curriculum + sparse smoke test
+{
+  const cfg = normalize(applyRecipe(defaultConfig(), RECIPES[1]));
+  Object.assign(cfg.actions, { sharedBrain: true }); Object.assign(cfg.goal, { timing: 'sparse' }); Object.assign(cfg.school, { hands: 10000, seed: 5, curriculum: 'stages', company: 2 });
+  const T = createTrainer(cfg); T.step(10000); const rep = T.report(1000);
+  ok(true, `shared+sparse+curriculum+company smoke: EV ${rep.point.ev.toFixed(3)} bet ${rep.point.bet.toFixed(2)}`);
+}
+{
+  const cfg = defaultConfig(); Object.assign(cfg.goal, { type: 'champion' }); Object.assign(cfg.school, { hands: 5000, seed: 3, company: 2 }); normalize(cfg);
+  const T = createTrainer(cfg); T.step(5000); const rep = T.report(1000);
+  ok(true, `champion goal smoke: EV ${rep.point.ev.toFixed(3)}`);
+}
+log('DONE');
+window.__results = results;
+</script></body></html>

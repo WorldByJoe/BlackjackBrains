@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blackjack Brains — Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<style>
+.prose{max-width:70ch}
+.prose h2{font-size:26px;margin:28px 0 6px}
+.prose h3{font-size:19px;margin:20px 0 4px}
+.prose p,.prose li{font-size:15px}
+.prose ul{padding-left:20px}
+.prose li{margin-bottom:6px}
+table.grid td.k{font-weight:600;white-space:nowrap}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Blackjack Brains</h1><span class="sub">Guide</span>
+  <nav><a href="index.html">Train</a><a href="tournament.html">Tournament</a><a href="guide.html" class="here">Guide</a></nav>
+</header>
+
+<div class="wrap">
+<div class="card prose">
+  <h2>What this is</h2>
+  <p>A game about machine learning wearing a blackjack costume. You design a small learning system, train it by letting it play thousands of hands against the dealer, and save it as a file. Then everyone loads their trained models into one tournament and the models play for money. Nobody programs a strategy. Each model has to discover, from winning and losing, what works.</p>
+  <p>The point is to feel the differences between kinds of learning: a lookup table that memorizes, a neural network that generalizes, a population that evolves, a learner that reasons from its nearest memories. Same game, five very different minds.</p>
+
+  <h2>The rules of the table</h2>
+  <p>These are fixed for everyone and stamped into every saved model, so a fight is always fair. They are ordinary Las Vegas Strip rules.</p>
+  <table class="grid">
+    <tbody>
+      <tr><td class="k">Decks</td><td>Five-deck shoe, reshuffled after three quarters are dealt. A single-deck, reshuffle-every-hand mode is available for training.</td></tr>
+      <tr><td class="k">Dealer</td><td>Stands on soft 17. Peeks for blackjack when showing an ace or ten.</td></tr>
+      <tr><td class="k">Blackjack</td><td>Pays 3 to 2.</td></tr>
+      <tr><td class="k">Doubling</td><td>On any first two cards, and after a split.</td></tr>
+      <tr><td class="k">Splitting</td><td>Up to four hands. Split aces get one card each.</td></tr>
+      <tr><td class="k">Surrender</td><td>Late surrender allowed: give up the first two cards for half the bet.</td></tr>
+      <tr><td class="k">Money</td><td>Start with 100 chips. Table minimum 1, maximum 25. Chip sizes 1, 2, 5, 10, 25.</td></tr>
+      <tr><td class="k">Session</td><td>300 hands. Go below 1 chip and you sit out for the rest of the session.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Building a player: the eight choices</h2>
+  <p>The Train page walks through eight layers. Every control has an <span class="info" style="cursor:default">i</span> that explains it. In short:</p>
+  <ul>
+    <li><b>Brain.</b> The learning family: lookup table, value network, policy network, evolution, or memory. This changes the most.</li>
+    <li><b>Senses.</b> What the model sees. Two moments: the bet, before any cards, and the play, during the hand. Every added input multiplies what it must learn.</li>
+    <li><b>Actions.</b> Which moves it may make, and what bet sizes it chooses among.</li>
+    <li><b>Body.</b> The size and shape of the brain, which sets its weight class.</li>
+    <li><b>Goal.</b> What it is rewarded for: the right play, the biggest session, mere survival, hitting a target, or winning the table. Same brain, different goal, different gambler.</li>
+    <li><b>School.</b> Where it trains: single deck or shoe, alone or with company, and for how many hands.</li>
+    <li><b>Teacher.</b> How the learning is paced: learning rate, exploration, and the rest.</li>
+  </ul>
+
+  <h3>How counting is meant to emerge</h3>
+  <p>Nothing in the menu is labeled "card counting." The nearest thing is a sense called the discard tray: ten numbers telling the model how many of each card value have already been dealt since the last shuffle. Turn it on, train on the shoe, and a network <em>can</em> learn on its own that a tray full of low cards means the deck is rich and it should bet more. It has to find that from experience. A lookup table cannot even hold the tray, which is exactly why networks exist, and a good reason to train one model of each kind and compare. Watch the "average bet by true count" chart on the Train page to see whether your model found it.</p>
+
+  <h2>The tournament</h2>
+  <p>Load everyone's models on the Tournament page. There are two ways to compete, and both are worth trying:</p>
+  <ul>
+    <li><b>Duplicate.</b> Every model plays the identical cards in isolation, many times over. This is the fair measurement, like duplicate bridge, because luck is held constant and only skill differs.</li>
+    <li><b>Shared table.</b> All the models sit at one table over one shoe, as in a real casino, where one model taking a card changes the next model's card. More chaotic, more fun, and you can watch it deal hand by hand.</li>
+  </ul>
+  <p>Blackjack is noisy, so the leaderboard reports the median result across many sessions along with the typical range, not a single lucky night. A model that wins on average can still lose a given evening, which is the whole reason casinos stay in business.</p>
+
+  <h2>Weight classes</h2>
+  <p>Two models are only really comparable if they are near the same size and have trained about the same amount. The file records both, and the tournament flags mismatches.</p>
+  <table class="grid">
+    <tbody>
+      <tr><td class="k">By size</td><td>Featherweight under 200 parameters, Lightweight to 2,000, Middleweight to 20,000, Heavyweight beyond.</td></tr>
+      <tr><td class="k">By experience</td><td>Rookie under 100k hands, Regular to 1M, Veteran to 10M, Grinder beyond.</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:20px"><a href="index.html">← Start training a model</a></p>
+</div>
+</div>
+</body>
+</html>
