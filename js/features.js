@@ -37,6 +37,7 @@ export function makeFeaturizer(config) {
   // ---- discrete keys for lookup tables and memory buckets --------------------------------
   function extraKey(c) {
     let k = '';
+    if (s.trueCount) k += '|t' + Math.max(-6, Math.min(6, Math.round(trueCount(c.tray, c.decksLeft))));
     if (s.bankroll) k += '|b' + bankrollBin(c.bankroll / c.startBankroll, bins.bankroll);
     if (s.handsLeft) k += '|h' + Math.min(bins.hands - 1, Math.floor(bins.hands * c.handsRemaining / c.sessionHands));
     if (s.players) k += '|p' + c.nPlayers;
@@ -71,6 +72,7 @@ export function makeFeaturizer(config) {
 
 function sharedParts(s) {
   const parts = [];
+  if (s.trueCount) parts.push({ n: 1, f: (c, o, i) => { o[i] = Math.max(-1, Math.min(1, trueCount(c.tray, c.decksLeft) / 10)); } });
   if (s.tray) parts.push({ n: 10, f: (c, o, i) => { const d = c.decks; for (let v = 0; v < 10; v++) o[i + v] = c.tray[v] / (v === 9 ? 16 * d : 4 * d); } });
   if (s.depth) parts.push({ n: 1, f: (c, o, i) => { o[i] = c.fractionLeft; } });
   if (s.bankroll) parts.push({ n: 1, f: (c, o, i) => { o[i] = Math.min(3, c.bankroll / c.startBankroll); } });

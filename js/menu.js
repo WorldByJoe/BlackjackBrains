@@ -95,6 +95,7 @@ export const OPTIONS = [
   { id: 'senses.composition', layer: 'senses', path: 'senses.composition', label: 'Hand composition', type: 'toggle', tip: 'Show how many of each rank are in the hand, not just the total. Lets composition-dependent play emerge. Multiplies a lookup table about twentyfold.' },
   { id: 'senses.nCards', layer: 'senses', path: 'senses.nCards', label: 'Cards in hand', type: 'toggle', tip: 'Two cards or five. Matters mostly for doubling, which is only offered on two.' },
   { id: 'senses.tray', layer: 'senses', path: 'senses.tray', label: 'Discard tray', type: 'toggle', tip: 'Ten numbers: how many aces, twos, and so on through tens have been seen since the last shuffle. The doorway to counting. Nobody tells the model which ranks matter.', disabled: cfg => cfg.brain === 'tab' ? 'A lookup table cannot hold the tray: ten more inputs would multiply it into billions of rows. This is why networks exist.' : null },
+  { id: 'senses.trueCount', layer: 'senses', path: 'senses.trueCount', label: 'True count (given)', type: 'toggle', tip: 'Hands the model the Hi-Lo true count directly as one number, instead of making it discover counting from the tray. A shortcut and a diagnostic: if a model still cannot profit with the count handed to it, the problem is its play, not its counting.' },
   { id: 'senses.depth', layer: 'senses', path: 'senses.depth', label: 'Shoe depth', type: 'toggle', tip: 'Fraction of the shoe still to be dealt. A tray only means something relative to what is left.' },
   { id: 'senses.bankroll', layer: 'senses', path: 'senses.bankroll', label: 'Bankroll', type: 'toggle', tip: 'Chips in hand as a fraction of the starting stack. Needed for the survive and target goals to make sense. Binned for a lookup table.' },
   { id: 'senses.handsLeft', layer: 'senses', path: 'senses.handsLeft', label: 'Hands remaining', type: 'toggle', tip: 'How close the session is to its end. Lets a model play the clock.' },
@@ -117,8 +118,15 @@ export const OPTIONS = [
     C('three', '1 · 5 · 25', 'Three chip sizes.'),
     C('five', '1 · 2 · 5 · 10 · 25', 'The full ladder of real denominations.'),
     C('allornothing', 'All or nothing: 1 · 25', 'Minimum or maximum, nothing between.'),
+    C('wide', 'Wide spread: 1 · 5 · 25 · 100 · 500 · 1000', 'A 1,000x spread for serious card counting. Only pays off if the model bets big strictly at favorable counts; pair it with a large bankroll and the discard tray.'),
     C('fraction', 'Fraction of bankroll', 'Bet 1%, 5%, 10% or 25% of what is in hand, rounded to chips and clamped to the table. Needs the bankroll input.'),
-  ], tip: 'What bet sizes the model chooses among before each hand.' },
+  ], tip: 'What bet sizes the model chooses among before each hand. The maximum is also capped by the table max bet below.' },
+  { id: 'stakes.bankroll', layer: 'actions', path: 'stakes.bankroll', label: 'Starting bankroll', type: 'select', choices: [
+    C(100, '$100', 'The standard table.'), C(1000, '$1,000', 'A deeper stack.'), C(10000, '$10,000', 'A serious bankroll: a bad streak will not wipe it out, so a counter can ride variance for the long-run edge.'),
+  ], tip: 'How much money the model sits down with. A bigger stack survives losing streaks, which matters when betting a wide spread. Stamped into the file; models only compete against others at the same stakes.' },
+  { id: 'stakes.maxBet', layer: 'actions', path: 'stakes.maxBet', label: 'Table maximum bet', type: 'select', choices: [
+    C(25, '$25', 'The standard table.'), C(100, '$100', ''), C(500, '$500', ''), C(1000, '$1,000', 'Lets a counter fully leverage a rich deck.'),
+  ], tip: 'The largest bet the table allows. Caps the bet ladder, so the wide spread needs this raised to $1,000 to have any effect.' },
   { id: 'actions.sharedBrain', layer: 'actions', path: 'actions.sharedBrain', only: NET, label: 'One brain for bet and play', type: 'toggle', tip: 'Betting and playing share one network with a phase flag, so what is learned about the tray helps both. Off means two separate networks.', disabled: cfg => cfg.actions.ladder === 'flat' ? 'Only applies when the model bets.' : null },
 
   // ---------------------------------------------------------------- body

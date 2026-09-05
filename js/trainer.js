@@ -2,10 +2,8 @@
 import { RULES, TABLE, Shoe, Table, mulberry32, randomSeed } from './engine.js';
 import { bookAgent, bookAction } from './book.js';
 import { trueCount } from './features.js';
-import { buildModel, REWARD_UNIT } from './model.js';
+import { buildModel, stakesOf } from './model.js';
 import { MLP, softmax, sample, argmaxLegal } from './mlp.js';
-
-const R = REWARD_UNIT;
 
 export function makeShoe(school, rng) {
   if (school.cards === 'infinite') return new Shoe({ mode: 'infinite', rng });
@@ -34,12 +32,12 @@ export class PolicyAgent {
   chooseAction(ctx) { const m = this.m; return m.toEngine(ctx, greedyIndex(m.headFor('play'), m.obsFor(ctx), m.legalFor(ctx))); }
 }
 
-function tableFor(cfg, learnerAgent, learnerName, shoe, sessionIndex, N, rng) {
+function tableFor(cfg, learnerAgent, learnerName, shoe, sessionIndex, N, rng, table = TABLE) {
   const company = cfg.school.company || 0;
   const players = [];
   const pos = cfg.school.seat === 'fixed' ? 0 : sessionIndex % (company + 1);
   for (let i = 0; i <= company; i++) players.push(i === pos ? { agent: learnerAgent, name: learnerName } : { agent: bookAgent, name: `Bot ${i + 1}` });
-  return { table: new Table({ rules: RULES, table: { ...TABLE, sessionHands: N }, shoe, players, rng }), pos };
+  return { table: new Table({ rules: RULES, table: { ...table, sessionHands: N }, shoe, players, rng }), pos };
 }
 
 // Score of one finished session under a goal. Used by evolution fitness and evaluation summaries.
@@ -55,11 +53,12 @@ function sessionScore(goal, s) {
 export function evaluate(model, { hands = 2000, seed = 12345, N = null } = {}) {
   const cfg = model.config, goal = cfg.goal;
   const n = N || goal.N || 300;
+  const stk = stakesOf(cfg), localTable = { ...TABLE, bankroll: stk.bankroll, minBet: stk.minBet, maxBet: stk.maxBet };
   const rng = mulberry32(seed), shoe = makeShoe(cfg.school, rng);
   const agent = new PolicyAgent(model);
   let played = 0, sessions = 0, ruined = 0, finalSum = 0, netSum = 0, scoreSum = 0, si = 0;
   while (played < hands) {
-    const { table, pos } = tableFor(cfg, agent, 'eval', shoe, si++, n, rng);
+    const { table, pos } = tableFor(cfg, agent, 'eval', shoe, si++, n, rng, localTable);
     const me = table.players[pos];
     let h = 0, hit = false;
     for (; h < n; h++) { if (me.sitOut) break; table.playRound(n); if (goal.type === 'target' && me.bankroll >= goal.target) { hit = true; h++; break; } }
@@ -113,6 +112,8 @@ export function createTrainer(cfg, saved = null) {
     model, cfg, hands: saved ? saved.training.hands : 0, sessionHands: 0, sessions: 0, generation: saved && saved.training.generations || 0,
     recentNets: new Float64Array(20000), recentN: 0, recentI: 0, trace: [], lastTrace: [], curve: saved && saved.training.curve ? saved.training.curve.slice() : [], done: false,
   };
+  const stk = stakesOf(cfg), localTable = { ...TABLE, bankroll: stk.bankroll, minBet: stk.minBet, maxBet: stk.maxBet };
+  const R = 1 / stk.maxBet;  // scale chip outcomes to ~unit range regardless of stakes
   const startHands = T.hands;
   const progress = () => Math.min(1, (T.hands - startHands) / Math.max(1, cfg.school.hands || 1000000));
   const shapeHand = net => (net < 0 ? net * goal.lossWeight : net) * R;
@@ -205,12 +206,12 @@ export function createTrainer(cfg, saved = null) {
   // ---- sessions
   let table = null, me = null, pos = 0;
   function startSession() {
-    ({ table, pos } = tableFor(cfg, agent, 'learner', shoe, T.sessions, N, rng));
+    ({ table, pos } = tableFor(cfg, agent, 'learner', shoe, T.sessions, N, rng, localTable));
     me = table.players[pos]; T.sessionHands = 0; T.trace = [];
   }
   function endSession(hit) {
     const finalScore = (() => {
-      if (goal.type === 'sessionTotal' && goal.timing === 'sparse') { const d = (me.bankroll - me.startBankroll) / 100; return d < 0 ? d * goal.lossWeight : d; }
+      if (goal.type === 'sessionTotal' && goal.timing === 'sparse') { const d = (me.bankroll - me.startBankroll) / Math.max(1, me.startBankroll) * 100; return d < 0 ? d * goal.lossWeight : d; }
       if (goal.type === 'survive' && goal.timing === 'sparse') return T.sessionHands / N;
       if (goal.type === 'target') return hit ? 1 : 0;
       if (goal.type === 'champion') return table.players.every(p => p === me || p.bankroll < me.bankroll) ? 1 : 0;

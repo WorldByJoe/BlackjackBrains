@@ -14,10 +14,11 @@ export function defaultConfig() {
     pol: { baseline: 'none', entropy: 0.01, handsPerUpdate: 10 },
     evo: { pop: 50, selection: 'top', mutRate: 0.05, mutSize: 'medium', crossover: 'uniform', elites: 1, evalHands: 1000 },
     mem: { k: 5, capacity: 10000, forgetting: 'oldest', weighting: 'flat' },
-    senses: { composition: false, nCards: false, tray: false, depth: false, bankroll: false, handsLeft: false, currentBet: false, players: false, recent: false, noise: false, encoding: 'scaled' },
+    senses: { composition: false, nCards: false, tray: false, trueCount: false, depth: false, bankroll: false, handsLeft: false, currentBet: false, players: false, recent: false, noise: false, encoding: 'scaled' },
     actions: { double: true, split: true, surrender: true, ladder: 'flat', sharedBrain: false },
     body: { layers: 1, width: 16, activation: 'relu', init: 'random', dropout: 0, bankrollBins: 4, handsBins: 3 },
     goal: { type: 'everyHand', N: 300, target: 200, lossWeight: 1, timing: 'dense', gamma: 1 },
+    stakes: { bankroll: 100, minBet: 1, maxBet: 25 },
     school: { cards: 'shoe', decks: 5, penetration: 0.75, company: 0, seat: 'rotating', hands: 100000, curriculum: 'none', seed: 0 },
     teacher: { lr: 0.01, exploration: 'epsilon', epsStart: 1, epsEnd: 0.01, epsOver: 0.5, epsShape: 'linear', temperature: 0.5, updateEvery: 1, optimizer: 'adam', batch: 32, lrSchedule: 'constant', clip: true, weightDecay: 0 },
   };
@@ -25,8 +26,15 @@ export function defaultConfig() {
 
 export const LADDERS = {
   flat: { chips: [1] }, three: { chips: [1, 5, 25] }, five: { chips: [1, 2, 5, 10, 25] }, allornothing: { chips: [1, 25] },
+  wide: { chips: [1, 5, 25, 100, 500, 1000] },
   fraction: { fractions: [0.01, 0.05, 0.10, 0.25] },
 };
+
+// Table stakes a model was trained under; falls back to the standard table for older files.
+export function stakesOf(cfg) {
+  const s = cfg.stakes || {};
+  return { bankroll: s.bankroll ?? TABLE.bankroll, minBet: s.minBet ?? TABLE.minBet, maxBet: s.maxBet ?? TABLE.maxBet };
+}
 
 export function playActionsFor(cfg) {
   const a = ['H', 'S'];

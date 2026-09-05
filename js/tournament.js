@@ -1,7 +1,10 @@
 // Tournament: rebuild saved models into agents, then either duplicate (isolated, identical cards)
 // or live (all at one shared table) scoring. Plus a step-by-step live table for animation.
 import { RULES, TABLE, Shoe, Table, mulberry32, evalHand } from './engine.js';
-import { buildModel } from './model.js';
+import { buildModel, stakesOf } from './model.js';
+
+// Stakes for a set of entries: the first entry's regime (all seats at one table share it).
+function tableOf(entries) { const s = entries.length ? stakesOf(entries[0].model.config) : TABLE; return { ...TABLE, bankroll: s.bankroll, minBet: s.minBet, maxBet: s.maxBet }; }
 import { PolicyAgent } from './trainer.js';
 import { bookAgent } from './book.js';
 
@@ -17,12 +20,13 @@ function quant(a, q) { const s = a.slice().sort((x, y) => x - y); if (!s.length)
 export function duplicateTournament(entries, { N = 300, R = 200, baseSeed = 1234, mode = 'shoe' } = {}) {
   const finals = entries.map(() => []);
   const wins = entries.map(() => 0), ruins = entries.map(() => 0);
+  const lt = tableOf(entries);
   for (let r = 0; r < R; r++) {
     const seed = (baseSeed + r * 2654435761) >>> 0;
     const round = [];
     entries.forEach((e, ei) => {
       const rng = mulberry32(seed), shoe = new Shoe({ mode: mode === 'single' ? 'single' : 'shoe', decks: 5, penetration: 0.75, rng });
-      const t = new Table({ rules: RULES, table: { ...TABLE, sessionHands: N }, shoe, players: [{ agent: e.agent, name: e.handle }], rng });
+      const t = new Table({ rules: RULES, table: { ...lt, sessionHands: N }, shoe, players: [{ agent: e.agent, name: e.handle }], rng });
       const me = t.players[0];
       for (let h = 0; h < N && !me.sitOut; h++) t.playRound(N);
       finals[ei].push(me.bankroll); if (me.sitOut) ruins[ei]++; round.push(me.bankroll);
@@ -30,7 +34,7 @@ export function duplicateTournament(entries, { N = 300, R = 200, baseSeed = 1234
     const best = Math.max(...round);
     round.forEach((b, ei) => { if (b === best) wins[ei] += 1 / round.filter(x => x === best).length; });
   }
-  return entries.map((e, i) => summ(e, finals[i], wins[i] / R, ruins[i] / R, R));
+  return entries.map((e, i) => summ(e, finals[i], wins[i] / R, ruins[i] / R, R, lt.bankroll));
 }
 
 // LIVE: all entries at one shared table, N hands, seats rotate each shoe. R replicate tables.
@@ -42,11 +46,10 @@ export function liveTournament(entries, { N = 300, R = 200, baseSeed = 5678, mod
     const best = Math.max(...res.entryFinals);
     res.entryFinals.forEach((b, i) => { if (b === best) wins[i] += 1 / res.entryFinals.filter(x => x === best).length; });
   }
-  return entries.map((e, i) => summ(e, finals[i], wins[i] / R, ruins[i] / R, R));
+  return entries.map((e, i) => summ(e, finals[i], wins[i] / R, ruins[i] / R, R, tableOf(entries).bankroll));
 }
 
-function summ(e, finals, winRate, ruinRate, R) {
-  const start = TABLE.bankroll;
+function summ(e, finals, winRate, ruinRate, R, start = TABLE.bankroll) {
   return {
     handle: e.handle, params: e.params, hands: e.hands, entry: e,
     median: median(finals), mean: finals.reduce((a, b) => a + b, 0) / finals.length,
@@ -60,7 +63,7 @@ export function playLiveTable(entries, { N = 300, seed = 1, mode = 'shoe', bots 
   const rng = mulberry32(seed), shoe = new Shoe({ mode: mode === 'single' ? 'single' : 'shoe', decks: 5, penetration: 0.75, rng });
   const seats = entries.map(e => ({ agent: e.agent, name: e.handle, isModel: true }));
   for (let b = 0; b < bots; b++) seats.push({ agent: bookAgent, name: 'House Bot ' + (b + 1), isModel: false });
-  const t = new Table({ rules: RULES, table: { ...TABLE, sessionHands: N }, shoe, players: seats, rng });
+  const t = new Table({ rules: RULES, table: { ...tableOf(entries), sessionHands: N }, shoe, players: seats, rng });
   const idxOf = new Map(entries.map((e, i) => [e.handle, i]));
   const rounds = [];
   let lastShuffle = -1;
