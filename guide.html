@@ -23,7 +23,7 @@ table.grid td.k{font-weight:600;white-space:nowrap}
 <header class="top">
   <img class="mark" src="worldbyjoe-mark.png" alt="World by Joe">
   <h1>Blackjack Brains</h1><span class="sub">Guide</span>
-  <nav><a href="index.html">Train</a><a href="tournament.html">Tournament</a><a href="guide.html" class="here">Guide</a></nav>
+  <nav><a href="index.html">Train</a><a href="tournament.html">Tournament</a><a href="guide.html" class="here">Guide</a><a href="findings.html">Findings</a></nav>
 </header>
 
 <div class="wrap">
@@ -31,6 +31,7 @@ table.grid td.k{font-weight:600;white-space:nowrap}
   <h2>What this is</h2>
   <p>A game about machine learning wearing a blackjack costume. You design a small learning system, train it by letting it play thousands of hands against the dealer, and save it as a file. Then everyone loads their trained models into one tournament and the models play for money. Nobody programs a strategy. Each model has to discover, from winning and losing, what works.</p>
   <p>The point is to feel the differences between kinds of learning: a lookup table that memorizes, a neural network that generalizes, a population that evolves, a learner that reasons from its nearest memories. Same game, five very different minds.</p>
+  <p><b>The goal: beat the simple lookup bot.</b> It turns out nobody, human or machine, reliably beats the house at blackjack (see the <a href="findings.html">Findings</a> for the whole story). So that is not the contest. The contest is to build the model that most outplays the <em>simple lookup bot</em>: the naive player that memorizes basic strategy and flat-bets every hand. Beat that bot, not the casino, and you win. Add it as a House Bot on the Tournament page, or load its file, and see how far past it your design can get.</p>
 
   <h2>The rules of the table</h2>
   <p>These are fixed for everyone and stamped into every saved model, so a fight is always fair. They are ordinary Las Vegas Strip rules.</p>

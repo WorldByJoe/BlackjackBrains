@@ -41,6 +41,7 @@
     <a href="index.html">Train</a>
     <a href="tournament.html" class="here">Tournament</a>
     <a href="guide.html">Guide</a>
+    <a href="findings.html">Findings</a>
   </nav>
 </header>
 
@@ -53,7 +54,7 @@
       <button id="pick" class="btn small">choose files</button>
       <input id="files" type="file" accept=".json,application/json" multiple hidden>
     </div>
-    <p class="blurb" style="margin-top:10px">Benchmarks to beat, trained by Claude: <a href="BlackJackKing.bjbrain.json" download>BlackJackKing</a> (aggressive counter, boom or bust) &middot; <a href="BlackJackSage.bjbrain.json" download>BlackJackSage</a> (disciplined counter, steady). Download and drop them in above.</p>
+    <p class="blurb" style="margin-top:10px"><b>The goal: beat the simple lookup bot</b> (basic strategy, flat bet) &mdash; the naive player. Download it and drop it in as your opponent: <a href="SimpleLookupBot.bjbrain.json" download>SimpleLookupBot</a>. For tougher benchmarks, try the counters <a href="BlackJackKing.bjbrain.json" download>BlackJackKing</a> and <a href="BlackJackSage.bjbrain.json" download>BlackJackSage</a>. Why beat the bot and not the house? See the <a href="findings.html">Findings</a>.</p>
     <div id="entries" style="margin-top:14px"></div>
     <div id="modelcard" hidden></div>
   </div>

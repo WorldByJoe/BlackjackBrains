@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blackjack Brains — Findings</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="180x180" href="worldbyjoe-mark.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css?v=6">
+<style>
+.prose{max-width:70ch}
+.prose h2{font-size:26px;margin:30px 0 6px}
+.prose h3{font-size:19px;margin:20px 0 4px}
+.prose p,.prose li{font-size:15px}
+.prose ul{padding-left:20px}
+.prose li{margin-bottom:6px}
+.lead{font-size:17px;color:var(--ink)}
+.goal{background:var(--felt-soft);border:1px solid var(--felt);border-left:5px solid var(--felt);border-radius:0 10px 10px 0;padding:16px 20px;margin:22px 0}
+.goal h2{margin:0 0 6px;color:var(--felt-ink);font-size:24px}
+.goal p{margin:0 0 8px;max-width:66ch}
+.goal p:last-child{margin:0}
+.aside{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:20px 0}
+.aside h3{margin:0 0 6px}
+table.grid td.k{font-weight:600;white-space:nowrap}
+table.grid td.num{font-family:"IBM Plex Mono",monospace;text-align:right;font-variant-numeric:tabular-nums}
+.tag-loss{color:var(--red);font-weight:600}
+</style>
+</head>
+<body>
+<header class="top">
+  <img class="mark" src="worldbyjoe-mark.png" alt="World by Joe">
+  <h1>Blackjack Brains</h1><span class="sub">Findings</span>
+  <nav><a href="index.html">Train</a><a href="tournament.html">Tournament</a><a href="guide.html">Guide</a><a href="findings.html" class="here">Findings</a></nav>
+</header>
+
+<div class="wrap">
+<div class="card prose">
+  <div class="eyebrow" style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)">What we learned</div>
+  <h1 style="font-size:clamp(32px,6vw,48px);line-height:1;margin:8px 0 12px">Can a machine beat blackjack?</h1>
+  <p class="lead">We built learning agents of five different kinds, trained some of them on millions of hands, and pushed hard to find a strategy that turns a profit against the house. The short answer is the one casinos are built on: <b>no</b>. But the way it fails is the interesting part, and it reshapes what the game is actually about.</p>
+
+  <h2>1. Basic strategy is a slow, steady loss</h2>
+  <p>Play every hand by the textbook and never vary your bet, exactly what a lookup table learns, and you lose about half a percent of every dollar wagered. Our simulated table returned about &minus;0.4% per hand, right where the gambling literature puts a standard Las Vegas game. Perfect play does not win; it just loses slowly.</p>
+
+  <h2>2. Card counting emerges, but the edge is a whisper</h2>
+  <p>Give a neural network the discard tray (how many of each card have been dealt) and, with enough training, it discovers on its own that a deck rich in high cards is worth betting more on. Real counting, learned from nothing. But the payoff is tiny and buried in noise. We built two counters to see it:</p>
+  <ul>
+    <li><b>BlackJackKing</b>, aggressive: bets big, wins most individual nights, but busts about a third of the time.</li>
+    <li><b>BlackJackSage</b>, disciplined: minimum bet until the deck turns rich, almost never broke.</li>
+  </ul>
+  <p>Over 1,000 simulated sessions of 300 hands each, from a $10,000 stack, neither turned a profit:</p>
+  <div class="tablewrap" style="margin:10px 0"><table class="grid">
+    <thead><tr><th>Over 1,000 games</th><th style="text-align:right">Average end</th><th style="text-align:right">Net / game</th><th style="text-align:right">Went broke</th></tr></thead>
+    <tbody>
+      <tr><td class="k">BlackJackKing</td><td class="num">$8,532</td><td class="num tag-loss">&minus;$1,468</td><td class="num">32%</td></tr>
+      <tr><td class="k">BlackJackSage</td><td class="num">$9,369</td><td class="num tag-loss">&minus;$631</td><td class="num">0.2%</td></tr>
+    </tbody>
+  </table></div>
+  <p>The lesson in one line: <b>variance is not an edge.</b> King finished ahead on most nights and even won more head-to-head sessions, yet lost the most money, because his 32% of busts each wiped out a full stack. A high ceiling on top of a losing average is still a losing game.</p>
+
+  <h2>3. Bigger bets and a deeper bankroll did not help</h2>
+  <p>We let the counters bet from $1 all the way to $1,000 and sit down with $10,000, so a bad streak could not wipe them out, then trained fourteen of them hard. Every single one reached the same conclusion and <b>bet the table minimum</b>. Given the freedom to leverage a rich deck, they declined, because betting big on hands that are not truly favorable only loses faster. The learner was smart enough to know it had no edge to press.</p>
+
+  <h2>4. We handed them the count. Still no profit.</h2>
+  <p>To find out whether the wall was <em>counting</em> or <em>playing</em>, we gave the models the exact card count directly, no discovery required. The best one learned a textbook bet ramp, flat until the deck got rich, then scaling up. But measured over hundreds of thousands of hands it still came out slightly behind, about $9,960 on a $10,000 stack. A perfect count was necessary but not sufficient.</p>
+  <p>This matches the advantage-play literature closely. A counter's edge is genuinely small (roughly half a percent to one and a half percent under good conditions) and it is dwarfed by variance, you need hundreds of thousands of hands just to <em>measure</em> it. Winning for real also takes tools our game leaves out: strategy deviations that depend on the count, and taking insurance when the deck is rich. Without them, correctly timed big bets still are not enough.</p>
+
+  <div class="goal">
+    <h2>So what is the goal? Beat the simple lookup bot.</h2>
+    <p>Since nobody, human or machine, reliably beats the house at this game, that is not the contest. The real contest is this: <b>build the model that most outplays the simple lookup bot</b>, the naive player that memorizes basic strategy and flat-bets every hand.</p>
+    <p>That is a target you can actually hit. A model that learns to bet a little more when the deck is rich, or that plays a shade better, will finish ahead of the flat bot over a long run of hands. Load the lookup bot as your opponent on the Tournament page (or add it as a House Bot) and see how far past it your design can get. Everyone trains under the same rules, so the fight is fair, and beating the bot, not beating the casino, is how you win.</p>
+  </div>
+
+  <h2>And in a real casino?</h2>
+  <p>A few house games <em>can</em> be beaten by a skilled player, always by a thin margin and always with effort: blackjack by counting (what we simulated), certain full-pay video poker machines where perfect play returns just over 100%, sharp sports betting against the book, progressive jackpots once the meter climbs high enough, and the occasional promotion. Everything with no memory and a fixed payout, roulette, craps, baccarat played straight, slots, is unbeatable by any betting system. The through-line is the same one this project taught us: you can only win when the game leaks exploitable information or misprices a payout, and even then the edge is small and the variance is large.</p>
+
+  <p style="margin-top:24px"><a href="tournament.html">→ Take on the lookup bot in the Tournament</a></p>
+</div>
+</div>
+</body>
+</html>

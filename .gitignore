@@ -5,3 +5,4 @@ node_modules/
 # champion models are hosted on the site
 !BlackJackKing.bjbrain.json
 !BlackJackSage.bjbrain.json
+!SimpleLookupBot.bjbrain.json
